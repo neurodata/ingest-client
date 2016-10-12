@@ -339,6 +339,110 @@ class BossConfigurationGenerator(ConfigurationGenerator):
         self.add_property_object(database)
         self.add_property_object(ingest_job)
 
+class NeurodataConfigurationGenerator(ConfigurationGenerator):
+    def __init__(self):
+        ConfigurationGenerator.__init__(self)
+
+        self.name = "Neurodata Ingest v0.1"
+        self.description = "Configuration Generator for the Neurodata ingest service v0.1"
+
+    def setup(self):
+        """Method to setup instance by populating the correct data/property objects"""
+        # Schema section
+        schema = ConfigPropertyObject("schema",
+                                      {"version": "0.1",
+                                       "name": "neurodata",
+                                       "validator": "NeurodataValidatorV01"},
+                                      {"version": "Ingest service version number",
+                                       "name": "Ingest service type",
+                                       "validator": "The validator class to use to validate the schema"},
+                                      "Schema properties for validation"
+                                      )
+
+        # Client Section
+        client_backend = ConfigPropertyObject("backend",
+                                              {"name": "neurodata",
+                                               "class": "NeurodataBackend",
+                                               "host": "localhost",
+                                               "protocol": "http"},
+                                              {"name": "the backend name",
+                                               "class": "the class to load for handling this backend",
+                                               "host": "the domain name for the ingest server",
+                                               "protocol": "https or http"},
+                                              "Properties for the backend service"
+                                              )
+        client_tile_processor = ConfigPropertyObject("tile_processor",
+                                                     {"class": "",
+                                                      "params": None},
+                                                     {"class": "The name of the class to load for tile processing",
+                                                      "params": "Custom properties in a dictionary"},
+                                                     "Properties for the custom tile processor class"
+                                                     )
+        client_file_processor = ConfigPropertyObject("file_processor",
+                                                     {"class": "",
+                                                      "params": None},
+                                                     {"class": "The name of the class to load for file processing",
+                                                      "params": "Custom properties in a dictionary"},
+                                                     "Properties for the custom file processor class"
+                                                     )
+
+        client = ConfigPropertyObject("client",
+                                      {"backend": client_backend,
+                                       "tile_processor": client_tile_processor,
+                                       "file_processor": client_file_processor},
+                                      {"backend": "Properties for the backend service",
+                                       "tile_processor": "Ingest service type",
+                                       "file_processor": "The validator class to use to validate the schema"},
+                                      "Ingest client properties"
+                                      )
+
+        database = ConfigPropertyObject("database",
+                                        {"dataset": "",
+                                         "project": "",
+                                         "channel": ""},
+                                        {"dataset": "The dataset name containing the project and channel where data will be written",
+                                         "project": "The project name containing the channel where data will be written",
+                                         "channel": "The channel name where data will be written"},
+                                        "Properties describing where in the database data should be written"
+                                        )
+
+        # Ingest Job Section
+        ingest_job_extent = ConfigPropertyObject("extent",
+                                                 {"x": [0, 1],
+                                                  "y": [0, 1],
+                                                  "z": [0, 1],
+                                                  "t": [0, 1]},
+                                                 {"x": "The spatial extent (in pixels) in the x-dimension. Python convention - start inclusive, stop exclusive",
+                                                  "y": "The spatial extent (in pixels) in the y-dimension. Python convention - start inclusive, stop exclusive",
+                                                  "z": "The spatial extent (in pixels) in the z-dimension. Python convention - start inclusive, stop exclusive",
+                                                  "t": "The spatial extent (in pixels) in the t-dimension. Python convention - start inclusive, stop exclusive"},
+                                                 "The spatial extent of the data to be uploaded.  This does not have to be the entire dataset."
+                                                 )
+        ingest_job_tile_size = ConfigPropertyObject("tile_size",
+                                                 {"x": 4096,
+                                                  "y": 4096,
+                                                  "z": 1,
+                                                  "t": 0},
+                                                 {"x": "The size (in pixels) in the x-dimension of an individual image file",
+                                                  "y": "The size (in pixels) in the y-dimension of an individual image file",
+                                                  "z": "The size (in pixels) in the z-dimension of an individual image file",
+                                                  "t": "The number of time samples in a single file"},
+                                                 "The dimensions of the individual image data files that will be uploaded to the Boss"
+                                                 )
+        ingest_job = ConfigPropertyObject("ingest_job",
+                                          {"resolution": 0,
+                                           "extent": ingest_job_extent,
+                                           "tile_size": ingest_job_tile_size},
+                                          {"extent": "The spatial extent of the data to be uploaded.  This does not have to be the entire dataset.",
+                                           "resolution": "The resolution level to ingest data. Default is 0 which represents native resolution",
+                                           "tile_size": "The dimensions of the individual image data files that will be uploaded to the Boss"},
+                                          "The properties defining what part of the dataset will be ingested"
+                                          )
+
+        self.add_property_object(schema)
+        self.add_property_object(client)
+        self.add_property_object(database)
+        self.add_property_object(ingest_job)
 
 class ConfigFileError(Exception):
     """Custom error to catch config file errors upstream in the client"""

@@ -1,0 +1,49 @@
+{
+  "schema": {
+      "name": "neurodata-schema",
+      "validator": "NeurodataValidatorV01"
+  },
+  "client": {
+    "backend": {
+      "name": "neurodata",
+      "class": "NeurodataBackend",
+      "host": "localhost",
+      "protocol": "http"
+    },
+    "path_processor": {
+      "class": "ingest.plugins.filesystem.CatmaidFileImageStackPathProcessor",
+      "params": {
+        "root_dir": "",
+        "filetype": "png"
+      }
+    },
+    "tile_processor": {
+      "class": "ingest.plugins.filesystem.CatmaidFileImageStackTileProcessor",
+      "params": {
+        "filetype": "png"
+      }
+    }
+  },
+  "database": {
+    "dataset": "my_col_1",
+    "project": "my_exp_1",
+    "channel": "my_ch_1"
+  },
+  "ingest_job": {
+    "resolution": 0,
+    "extent": {
+      "x": [0, 2048],
+      "y": [0, 2048],
+      "z": [0, 200],
+      "t": [0, 1]
+    },
+    "tile_size": {
+      "x": 512,
+      "y": 512,
+      "z": 1,
+      "t": 1
+    }
+  }
+}
+
+

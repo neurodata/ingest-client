@@ -295,8 +295,3 @@ class TestBossBackend(BossBackendTestMixin, ResponsesMixin, unittest.TestCase):
     def tearDownClass(cls):
         # Stop mocking
         cls.setup_helper.stop_mocking()
-
-
-
-
-

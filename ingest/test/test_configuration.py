@@ -24,7 +24,7 @@ try:
 except ImportError:
     from unittest import mock
 
-from ingest.core.config import Configuration, ConfigPropertyObject, BossConfigurationGenerator
+from ingest.core.config import Configuration, ConfigPropertyObject, BossConfigurationGenerator, NeurodataConfigurationGenerator
 from ingest.core.validator import BossValidatorV01
 from ingest.core.backend import BossBackend
 from ingest.plugins.path import TestPathProcessor
@@ -144,6 +144,48 @@ class TestBossConfigurationGenerator(unittest.TestCase):
             assert "class" in data['client']['file_processor']
             self.assertEqual(data["schema"]["name"], "boss")
             self.assertEqual(data["schema"]["validator"], "BossValidatorV01")
+
+
+class TestNeurodataConfigurationGenerator(unittest.TestCase):
+
+    def test_create(self):
+        """Method to test the NeurodataConfigurationGenerator class"""
+        ndcg = NeurodataConfigurationGenerator()
+        ndcg.explain()  # Just make sure an error doesn't occur
+        assert ndcg.description == "Configuration Generator for the Neurodata ingest service v0.1"
+        assert ndcg.name == "Neurodata Ingest v0.1"
+
+    def test_save_load(self):
+        """Method to test the NeurodataConfigurationGenerator class"""
+        ndcg = NeurodataConfigurationGenerator()
+        with tempfile.NamedTemporaryFile(suffix=".pickle") as temp:
+            ndcg.save(temp.name)
+
+            # Load it into a new object
+            ndcg2 = NeurodataConfigurationGenerator()
+            ndcg2.load(temp.name)
+
+            # Make sure they are the same
+            assert ndcg.__dict__ == ndcg.__dict__
+
+    def test_to_json(self):
+        """Method to test json serialization"""
+        ndcg = NeurodataConfigurationGenerator()
+        with tempfile.NamedTemporaryFile(suffix=".json") as temp:
+            ndcg.to_json(temp.name)
+
+            with open(temp.name, 'rt') as json_file:
+                data = json.load(json_file)
+
+            # Make sure it serialized properly
+            assert "client" in data
+            assert "schema" in data
+            assert "backend" in data['client']
+            assert "file_processor" in data['client']
+            assert "tile_processor" in data['client']
+            assert "class" in data['client']['file_processor']
+            self.assertEqual(data["schema"]["name"], "neurodata")
+            self.assertEqual(data["schema"]["validator"], "NeurodataValidatorV01")
 
 
 class ConfigurationTestMixin(object):
