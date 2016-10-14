@@ -1,7 +1,7 @@
 {
   "schema": {
       "name": "neurodata-schema",
-      "validator": "NeurodataValidatorV01"
+      "validator": "NeurodataValidator"
   },
   "client": {
     "backend": {
@@ -25,9 +25,9 @@
     }
   },
   "database": {
-    "dataset": "my_col_1",
-    "project": "my_exp_1",
-    "channel": "my_ch_1"
+    "dataset": "unittest",
+    "project": "unittest",
+    "channel": "CHAN1"
   },
   "ingest_job": {
     "resolution": 0,

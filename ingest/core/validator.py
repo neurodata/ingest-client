@@ -101,11 +101,50 @@ class Validator(object):
         """
         if validator_str == "BossValidatorV01":
             return BossValidatorV01(config_data)
+        elif validator_str == "NeurodataValidator":
+            return NeurodataValidator(config_data)
         else:
             return ValueError("Unsupported validator: {}".format(validator_str))
 
 
 class BossValidatorV01(Validator):
+    def __init__(self, config_data):
+        """
+        A class to implement the ingest job configuration file validator for the Boss (docs.theBoss.io)
+
+        Args:
+            config_data(dict): Configuration dictionary
+
+        """
+        Validator.__init__(self, config_data)
+
+    def validate_properties(self):
+        """
+        Method to validate any custom properties beyond verifying that the schema was used correctly
+
+        Args:
+
+        Returns:
+            (list(str), list(str), list(str)): a tuple of lists containing "info", "question", "error" messages
+
+        """
+        # TODO: Add Boss specific validation
+        # Verify Collection
+
+        # Verify Experiment
+
+        # Verify Channel
+
+        # If channel already exists, check corners to see if data exists.  If so question user for overwrite
+
+        # Check tile size - error if too big
+
+        # Check backend connectivity
+
+        return ['Parameter Validation Passed'], [], []
+
+
+class NeurodataValidator(Validator):
     def __init__(self, config_data):
         """
         A class to implement the ingest job configuration file validator for the Boss (docs.theBoss.io)

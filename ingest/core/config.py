@@ -352,7 +352,7 @@ class NeurodataConfigurationGenerator(ConfigurationGenerator):
         schema = ConfigPropertyObject("schema",
                                       {"version": "0.1",
                                        "name": "neurodata",
-                                       "validator": "NeurodataValidatorV01"},
+                                       "validator": "NeurodataValidator"},
                                       {"version": "Ingest service version number",
                                        "name": "Ingest service type",
                                        "validator": "The validator class to use to validate the schema"},
@@ -478,7 +478,7 @@ class Configuration(object):
 
         """
         self.config_data = config_data
-
+        
         # Load the schema file based on the config that was provided
         try:
             schema_name = self.config_data['schema']['name']
