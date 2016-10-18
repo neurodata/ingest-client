@@ -96,9 +96,9 @@
         }
       },
       "required": [
-        "collection",
-        "experiment",
-        "channel_layer"
+        "dataset",
+        "project",
+        "channel"
       ]
     },
     "ingest_job": {

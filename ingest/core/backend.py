@@ -212,6 +212,8 @@ class Backend(object):
         """
         if backend_str == "BossBackend":
             return BossBackend(config_data)
+        elif backend_str == "NeurodataBackend":
+            return NeurodataBackend(config_data)
         else:
             return ValueError("Unsupported Backend: {}".format(backend_str))
 
@@ -535,7 +537,7 @@ class NeurodataBackend(Backend):
         """
         self.host = "{}://{}".format(self.config["client"]["backend"]["protocol"],
                                      self.config["client"]["backend"]["host"])
-
+        
         # Load API creds from ndio if needed.
         if not api_token:
             # First try to load token from ./credentials.json
@@ -549,12 +551,11 @@ class NeurodataBackend(Backend):
                 try:
                     cfg_parser = configparser.ConfigParser()
                     cfg_parser.read(os.path.expanduser("~/.ndio/ndio.cfg"))
-                    api_token = cfg_parser.get("Project Service", "token")
+                    # api_token = cfg_parser.get("Project Service", "token")
                 except KeyError as e:
                     print("API Token not provided. Failed to setup backend: {}".format(e))
 
-        self.api_headers = {'Authorization': 'Token ' + api_token, 'Accept': 'application/json',
-                            'content-type': 'application/json'}
+        self.api_headers = {'Accept': 'application/json', 'content-type': 'application/json'}
 
     def create(self, config_dict):
         """
@@ -568,8 +569,10 @@ class NeurodataBackend(Backend):
 
 
         """
-        r = requests.post('{}/{}/ingest/'.format(self.host, self.api_version), json=config_dict,
-                          headers=self.api_headers, verify=self.validate_ssl)
+        import pdb; pdb.set_trace()
+        r = requests.post('{}/ingest/'.format(self.host), json=config_dict)
+        # r = requests.post('{}/ingest/'.format(self.host), json=config_dict,
+                          # headers=self.api_headers, verify=self.validate_ssl)
 
         if r.status_code != 201:
             msg = json.loads(r.content)
@@ -642,7 +645,7 @@ class NeurodataBackend(Backend):
 
 
         """
-        r = requests.delete('{}/{}/ingest/{}'.format(self.host, self.api_version, ingest_job_id),
+        r = requests.delete('{}/ingest/{}'.format(self.host, ingest_job_id),
                             headers=self.api_headers, verify=self.validate_ssl)
 
         if r.status_code != 204:

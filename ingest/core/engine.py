@@ -272,6 +272,3 @@ class Engine(object):
                     break
 
         logger.info("No more tasks remaining.")
-
-
-

@@ -25,9 +25,9 @@
     }
   },
   "database": {
-    "dataset": "unittest",
-    "project": "unittest",
-    "channel": "CHAN1"
+    "dataset": "ingest",
+    "project": "ingest",
+    "channel": "image"
   },
   "ingest_job": {
     "resolution": 0,
