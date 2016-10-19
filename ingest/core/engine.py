@@ -17,7 +17,10 @@ from six.moves import input
 import logging
 import datetime
 import json
-
+from ndlib.ndtype import *
+from ndingest.ndbucket.tilebucket import TileBucket
+from ndingest.settings.settings import Settings
+settings = Settings.load()
 
 class Engine(object):
     def __init__(self, config_file=None, backend_api_token=None, ingest_job_id=None):
@@ -144,14 +147,7 @@ class Engine(object):
 
 
         """
-        self.job_status, self.credentials, self.upload_job_queue, tile_bucket, self.job_params = self.backend.join(self.ingest_job_id)
-
-        # Set cred time
-        self.credential_create_time = datetime.datetime.now()
-
-        # Setup bucket
-        s3 = boto3.resource('s3')
-        self.tile_bucket = s3.Bucket(tile_bucket)
+        self.job_status, self.nd_proj = self.backend.join(self.ingest_job_id)
 
         logger = logging.getLogger('ingest-client')
         logger.info("CREATED INGEST JOB: {}".format(self.ingest_job_id))
@@ -179,17 +175,17 @@ class Engine(object):
         logger = logging.getLogger('ingest-client')
 
         # Make sure you are joined
-        if not self.credentials:
-            msg = "Cannot start ingest engine.  You must first join an ingest job!"
-            logger.error(msg)
-            raise Exception(msg)
+        # if not self.credentials:
+            # msg = "Cannot start ingest engine.  You must first join an ingest job!"
+            # logger.error(msg)
+            # raise Exception(msg)
 
-        if self.job_status == 0:
-            msg = "Cannot start ingest engine.  Ingest job is not ready yet"
-            logger.error(msg)
-            raise Exception(msg)
+        # if self.job_status == INGEST_STATUS_PREPARING:
+            # msg = "Cannot start ingest engine.  Ingest job is not ready yet"
+            # logger.error(msg)
+            # raise Exception(msg)
 
-        if self.job_status == 2:
+        if self.job_status == INGEST_STATUS_COMPLETE:
             msg = "Ingest job already completed. Skipping ingest engine start."
             logger.info(msg)
             raise Exception(msg)
@@ -197,61 +193,26 @@ class Engine(object):
         # Do some work
         while True:
             try:
-                # Check if you need to renew credentials
-                if (datetime.datetime.now() - self.credential_create_time).total_seconds() > self.backend.credential_timeout:
-                    print("Renewing Credentials")
-                    logger.info("Renewing Credentials")
-                    self.join()
-
                 # Get a task
-                message_id, receipt_handle, msg = self.backend.get_task()
+                for message_id, receipt_handle, message_body in self.backend.get_task():
 
-                if not msg:
-                    break
+                  if not message_body:
+                      break
 
-                # TODO: DMK Verify and update once message format is finalized
-                key_parts = self.backend.decode_tile_key(msg['tile_key'])
-                logger.info("Processing Task -  X:{} Y:{} Z:{} T:{}".format(key_parts["x_index"],
-                                                                            key_parts["y_index"],
-                                                                            key_parts["z_index"],
-                                                                            key_parts["t_index"]))
+                  # Call path processor
+                  filename = self.path_processor.process(message_body["x_tile"], message_body["y_tile"], message_body["z_tile"], message_body["t_tile"])
 
-                # Call path processor
-                filename = self.path_processor.process(key_parts["x_index"],
-                                                       key_parts["y_index"],
-                                                       key_parts["z_index"],
-                                                       key_parts["t_index"])
+                  # Call tile processor
+                  tile_handle = self.tile_processor.process(filename, message_body["x_tile"], message_body["y_tile"], message_body["z_tile"], message_body["t_tile"])
 
-                # Call tile processor
-                handle = self.tile_processor.process(filename,
-                                                     key_parts["x_index"],
-                                                     key_parts["y_index"],
-                                                     key_parts["z_index"],
-                                                     key_parts["t_index"])
+                  try:
+                      tile_handle.seek(0)
+                      tile_bucket = TileBucket(self.nd_proj.project_name, endpoint_url=settings.S3_ENDPOINT)
+                      response = tile_bucket.putObject(tile_handle, self.nd_proj.channel_name, self.nd_proj.resolution, message_body['x_tile'], message_body['y_tile'], message_body['z_tile'], message_id, receipt_handle)
+                      logger.info("Successfully wrote file: {}".format(response.key))
 
-                try:
-                    metadata = {'chunk_key': msg['chunk_key'],
-                                'ingest_job': self.ingest_job_id,
-                                'parameters': self.job_params,
-                                }
-                    handle.seek(0)
-                    response = self.tile_bucket.put_object(ACL='private',
-                                                           Body=handle,
-                                                           Key=msg['tile_key'],
-                                                           Metadata={
-                                                               'message_id': message_id,
-                                                               'receipt_handle': receipt_handle,
-                                                               'metadata': json.dumps(metadata)
-                                                           },
-                                                           StorageClass='STANDARD')
-                    logger.info("Successfully wrote file: {}".format(response.key))
-
-                except Exception as e:
-                    logger.error("Upload Failed -  X:{} Y:{} Z:{} T:{} - {}".format(msg["x_tile"],
-                                                                                    msg["y_tile"],
-                                                                                    msg["z_tile"],
-                                                                                    msg["time_sample"],
-                                                                                    e))
+                  except Exception as e:
+                      logger.error("Upload Failed -  X:{} Y:{} Z:{} T:{} - {}".format(message_body["x_tile"], message_body["y_tile"], message_body["z_tile"], message_body["t_tile"], e))
 
             except KeyboardInterrupt:
                 # Make sure they want to stop this client

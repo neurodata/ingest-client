@@ -64,9 +64,8 @@ class CatmaidFileImageStackPathProcessor(PathProcessor):
         if y_index > self.parameters["ingest_job"]["extent"]["y"][1] / self.parameters["ingest_job"]["tile_size"]["y"] - 1:
             raise IndexError("Invalid Tile Y-Index: {}".format(y_index))
 
-        filename = "{}_{}_{}.{}".format(y_index, x_index, self.parameters["ingest_job"]["resolution"],
-                                        self.parameters["filetype"])
-        return os.path.join(self.parameters["root_dir"], "{}".format(z_index), filename)
+        filename = "{}_{}.{}".format(y_index, x_index, self.parameters["filetype"])
+        return os.path.join(self.parameters["root_dir"], "{}".format(self.parameters["ingest_job"]["resolution"]), "{}".format(z_index), filename)
 
 
 class CatmaidFileImageStackTileProcessor(TileProcessor):

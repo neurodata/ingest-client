@@ -13,7 +13,7 @@
     "path_processor": {
       "class": "ingest.plugins.filesystem.CatmaidFileImageStackPathProcessor",
       "params": {
-        "root_dir": "",
+        "root_dir": "/data/scratch/hippo1",
         "filetype": "png"
       }
     },

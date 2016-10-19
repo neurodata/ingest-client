@@ -11,12 +11,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import sys
+sys.path.append('..')
 from ingest.core.engine import Engine
 from ingest.core.config import ConfigFileError
 from six.moves import input
 import argparse
-import sys
-
 
 def get_confirmation(prompt):
     """Method to confirm decisions

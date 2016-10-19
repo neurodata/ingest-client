@@ -20,8 +20,13 @@ import hashlib
 from six.moves import configparser
 import os
 import time
+from ndlib.ndtype import *
 import botocore
 from pkg_resources import resource_filename
+from ndingest.ndingestproj.ndingestproj import NDIngestProj
+from ndingest.ndqueue.uploadqueue import UploadQueue
+from ndingest.settings.settings import Settings
+settings = Settings.load()
 
 
 
@@ -569,10 +574,7 @@ class NeurodataBackend(Backend):
 
 
         """
-        import pdb; pdb.set_trace()
         r = requests.post('{}/ingest/'.format(self.host), json=config_dict)
-        # r = requests.post('{}/ingest/'.format(self.host), json=config_dict,
-                          # headers=self.api_headers, verify=self.validate_ssl)
 
         if r.status_code != 201:
             msg = json.loads(r.content)
@@ -587,52 +589,20 @@ class NeurodataBackend(Backend):
             return r.json()['id']
 
     def join(self, ingest_job_id):
-        """
-        Method to join an ingest job upload
-
-        Job Status: {0: Preparing, 1: Uploading, 2: Complete, 3: Deleted}
-
-        Args:
-            ingest_job_id(int): The ID of the job you'd like to resume processing
-
-        Returns:
-            (int, dict, str, str, dict): The job status, AWS credentials, and SQS upload_job_queue, tile bucket name
-                                         config_params to pass along during upload via metadata
-
-
-        """
-        r = requests.get('{}/{}/ingest/{}'.format(self.host, self.api_version, ingest_job_id),
-                         headers=self.api_headers, verify=self.validate_ssl)
+        r = requests.get('{}/ingest/{}/'.format(self.host, ingest_job_id))
 
         if r.status_code != 200:
             raise Exception("Failed to join ingest job.")
         else:
             result = r.json()
-            status = result['ingest_job']["status"]
-            creds = {}
-            queue = ""
-            params = {}
-            tile_bucket = ""
 
-            if result['ingest_job']["status"] == 1:
+            if result["status"] == INGEST_STATUS_PREPARING:
                 # Good to join
-                creds = result["credentials"]
-                queue = result["ingest_job"]["upload_queue"]
-                tile_bucket = result["tile_bucket_name"]
+                nd_proj = NDIngestProj(result['project'], result['channel'], result['resolution'])
+                self.queue = UploadQueue(nd_proj, endpoint_url=settings.SQS_ENDPOINT)
 
-                # Setup params for the rest of the ingest process
-                params["upload_queue"] = result["ingest_job"]["upload_queue"]
-                params["ingest_queue"] = result["ingest_job"]["ingest_queue"]
-                params["ingest_lambda"] = result["ingest_lambda"]
-                params["KVIO_SETTINGS"] = result["KVIO_SETTINGS"]
-                params["STATEIO_CONFIG"] = result["STATEIO_CONFIG"]
-                params["OBJECTIO_CONFIG"] = result["OBJECTIO_CONFIG"]
-                params["resource"] = result["resource"]
-
-                self.setup_upload_queue(creds, queue, region="us-east-1")
-
-            return status, creds, queue, tile_bucket, params
-
+                return result['status'], nd_proj
+    
     def cancel(self, ingest_job_id):
         """
         Method to cancel an ingest job
@@ -652,31 +622,7 @@ class NeurodataBackend(Backend):
             raise Exception("Failed to join ingest job.")
 
     def get_task(self):
-        """
-        Method to get an upload task
-
-        Args:
-
-        Returns:
-            (str, str, dict): message_id, receipt_handle, message contents
-        """
-        try_cnt = 0
-        while try_cnt < 5:
-            try:
-                msg = self.queue.receive_messages(MaxNumberOfMessages=1, WaitTimeSeconds=5)
-                break
-            except botocore.exceptions.ClientError as e:
-                print("Waiting for credentials to be valid")
-                try_cnt += 1
-                time.sleep(3)
-
-                if try_cnt >= 5:
-                    raise Exception("Credentials failed to be come valid")
-
-        if msg:
-            return msg[0].message_id, msg[0].receipt_handle, json.loads(msg[0].body)
-        else:
-            return None, None, None
+        return self.queue.receiveMessage()
 
     def encode_tile_key(self, project_info, resolution, x_index, y_index, z_index, t_index=0):
         """A method to create a tile key.
