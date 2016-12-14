@@ -21,8 +21,8 @@ from .path import PathProcessor
 from .tile import TileProcessor
 
 
-class CatmaidFileImageStackPathProcessor(PathProcessor):
-    """Class for Catmaid File-based image stacks, Tile source type 1 in the documentation"""
+class CatmaidFileImageStackZoomLevelPathProcessor(PathProcessor):
+    """Class for Catmaid File-based image stacks with zoom levels, Tile source type 4 in the documentation"""
     def setup(self, parameters):
         """Set the params
 
@@ -68,7 +68,7 @@ class CatmaidFileImageStackPathProcessor(PathProcessor):
         return os.path.join(self.parameters["root_dir"], "{}".format(self.parameters["ingest_job"]["resolution"]), "{}".format(z_index), filename)
 
 
-class CatmaidFileImageStackTileProcessor(TileProcessor):
+class CatmaidFileImageStackZoomLevelTileProcessor(TileProcessor):
     """A Tile processor for a file where a multi-page TIFF contains all time points for a single z-slice"""
     def __init__(self):
         """Constructor to add custom class var"""
@@ -199,8 +199,8 @@ class CatmaidDirectoryImageStackTileProcessor(TileProcessor):
         # Send handle back
         return output
 
-class CatmaidFileImageStackZoomLevelPathProcessor(PathProcessor):
-    """Class for Catmaid File-based image stacks, Tile source type 4 in the documentation"""
+class CatmaidFileImageStackPathProcessor(PathProcessor):
+    """Class for Catmaid File-based image stacks, Tile source type 1 in the documentation"""
     def setup(self, parameters):
         """Set the params
 
@@ -246,7 +246,7 @@ class CatmaidFileImageStackZoomLevelPathProcessor(PathProcessor):
         return os.path.join(self.parameters["root_dir"], "{}".format(z_index), filename)
 
 
-class CatmaidFileImageStackZoomLevelTileProcessor(TileProcessor):
+class CatmaidFileImageStackTileProcessor(TileProcessor):
     """A Tile processor for a file where a multi-page TIFF contains all time points for a single z-slice"""
     def __init__(self):
         """Constructor to add custom class var"""
