@@ -204,7 +204,6 @@ class Engine(object):
                 # Get a task
                 for message_id, receipt_handle, message_body in self.backend.get_task():
 
-<<<<<<< HEAD
                   if not message_body:
                     time.sleep(10)
                     wait_cnt += 1
