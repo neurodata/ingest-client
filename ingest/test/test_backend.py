@@ -36,13 +36,14 @@ class ResponsesMixin(object):
 
     def add_default_response(self):
         mocked_repsonse = {"id": 23}
-        responses.add(responses.POST, 'https://api.theboss.io/v0.6/ingest/',
+        responses.add(responses.POST, 'https://api.theboss.io/v0.7/ingest/',
                       json=mocked_repsonse, status=201)
 
         mocked_repsonse = {"ingest_job": {"id": 23,
                                           "ingest_queue": "https://aws.com/myqueue1",
                                           "upload_queue": self.queue_url,
-                                          "status": 1
+                                          "status": 1,
+                                          "tile_count": 500
                                           },
                            "ingest_lambda": "my_lambda",
                            "tile_bucket_name": self.tile_bucket_name,
@@ -52,10 +53,10 @@ class ResponsesMixin(object):
                            "credentials": self.aws_creds,
                            "resource": {"resource": "stuff"}
                            }
-        responses.add(responses.GET, 'https://api.theboss.io/v0.6/ingest/23',
+        responses.add(responses.GET, 'https://api.theboss.io/v0.7/ingest/23',
                       json=mocked_repsonse, status=200)
 
-        responses.add(responses.DELETE, 'https://api.theboss.io/v0.6/ingest/23', status=204)
+        responses.add(responses.DELETE, 'https://api.theboss.io/v0.7/ingest/23', status=204)
 
 
 class BossBackendTestMixin(object):
@@ -96,13 +97,14 @@ class BossBackendTestMixin(object):
         b = BossBackend(self.example_config_data)
         b.setup(self.api_token)
 
-        status, creds, queue_url, tile_bucket, params = b.join(23)
+        status, creds, queue_url, tile_bucket, params, tile_count = b.join(23)
 
         assert b.queue.url == self.queue_url
         assert status == 1
         assert creds == self.aws_creds
         assert queue_url == self.queue_url
         assert tile_bucket == self.tile_bucket_name
+        assert tile_count == 500
         assert 'KVIO_SETTINGS' in params
         assert 'OBJECTIO_CONFIG' in params
         assert 'STATEIO_CONFIG' in params
@@ -217,7 +219,7 @@ class BossBackendTestMixin(object):
 
         assert parts["collection"] == params['collection']
         assert parts["experiment"] == params['experiment']
-        assert parts["channel_layer"] == params['channel']
+        assert parts["channel"] == params['channel']
         assert parts["resolution"] == params['resolution']
         assert parts["x_index"] == params['x_index']
         assert parts["y_index"] == params['y_index']
@@ -253,7 +255,7 @@ class BossBackendTestMixin(object):
 
         assert parts["collection"] == params['collection']
         assert parts["experiment"] == params['experiment']
-        assert parts["channel_layer"] == params['channel']
+        assert parts["channel"] == params['channel']
         assert parts["resolution"] == params['resolution']
         assert parts["x_index"] == params['x_index']
         assert parts["y_index"] == params['y_index']

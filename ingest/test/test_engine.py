@@ -40,13 +40,14 @@ class ResponsesMixin(object):
 
     def add_default_response(self):
         mocked_repsonse = {"id": 23}
-        responses.add(responses.POST, 'https://api.theboss.io/v0.6/ingest/',
+        responses.add(responses.POST, 'https://api.theboss.io/v0.7/ingest/',
                       json=mocked_repsonse, status=201)
 
         mocked_repsonse = {"ingest_job": {"id": 23,
                                           "ingest_queue": "https://aws.com/myqueue1",
                                           "upload_queue": self.queue_url,
-                                          "status": 1
+                                          "status": 1,
+                                          "tile_count": 500,
                                           },
                            "ingest_lambda": "my_lambda",
                            "tile_bucket_name": self.tile_bucket_name,
@@ -56,10 +57,10 @@ class ResponsesMixin(object):
                            "credentials": self.aws_creds,
                            "resource": {"resource": "stuff"}
                            }
-        responses.add(responses.GET, 'https://api.theboss.io/v0.6/ingest/23',
+        responses.add(responses.GET, 'https://api.theboss.io/v0.7/ingest/23',
                       json=mocked_repsonse, status=200)
 
-        responses.add(responses.DELETE, 'https://api.theboss.io/v0.6/ingest/23', status=204)
+        responses.add(responses.DELETE, 'https://api.theboss.io/v0.7/ingest/23', status=204)
 
 
 
@@ -121,6 +122,7 @@ class EngineBossTestMixin(object):
     def test_run(self):
         """Test getting a task from the upload queue"""
         engine = Engine(self.config_file, self.api_token, 23)
+        engine.msg_wait_iterations = 2
 
         # Put some stuff on the task queue
         self.setup_helper.add_tasks(self.aws_creds["access_key"], self.aws_creds['secret_key'], self.queue_url, engine.backend)

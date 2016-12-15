@@ -193,6 +193,7 @@ class ConfigurationTestMixin(object):
     def test_create(self):
         """Test creating a Configuration object"""
         config = Configuration(self.example_config_data)
+        config.load_plugins()
 
         assert isinstance(config, Configuration)
         assert isinstance(config.tile_processor_class, TestTileProcessor)
@@ -201,6 +202,7 @@ class ConfigurationTestMixin(object):
     def test_to_json(self):
         """Test json serialization"""
         config = Configuration(self.example_config_data)
+        config.load_plugins()
 
         json_data = config.to_json()
 
@@ -211,6 +213,7 @@ class ConfigurationTestMixin(object):
     def test_get_validator(self):
         """Test dynamically getting the validator class"""
         config = Configuration(self.example_config_data)
+        config.load_plugins()
 
         v = config.get_validator()
 

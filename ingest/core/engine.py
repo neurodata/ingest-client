@@ -11,8 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import time
+import sys
 from ingest.core.config import Configuration, ConfigFileError
-import boto3
 from six.moves import input
 import logging
 import datetime
@@ -34,6 +35,7 @@ class Engine(object):
 
         """
         self.config = None
+        self.msg_wait_iterations = 20  # Each iteration waits for 10 seconds for incoming messages
         self.backend = None
         self.validator = None
         self.tile_processor = None
@@ -48,6 +50,7 @@ class Engine(object):
         self.job_status = 0
         self.tile_bucket = None
         self.job_params = None
+        self.tile_count = 0
 
         if config_file:
             self.load_configuration(config_file)
@@ -79,6 +82,7 @@ class Engine(object):
 
         # Load Config file and validate
         self.config = Configuration(config_data)
+        self.config.load_plugins()
 
         # Get backend
         self.backend = self.config.get_backend(self.backend_api_token)
@@ -133,6 +137,9 @@ class Engine(object):
         """
         self.ingest_job_id = self.backend.create(self.config.config_data)
 
+        logger = logging.getLogger('ingest-client')
+        logger.info("CREATED INGEST JOB: {}".format(self.ingest_job_id))
+
     def join(self):
         """
         Method to join an ingest job upload
@@ -148,9 +155,13 @@ class Engine(object):
 
         """
         self.job_status, self.nd_proj = self.backend.join(self.ingest_job_id)
+        # self.job_status, self.credentials, self.upload_job_queue, self.tile_bucket, self.job_params, self.tile_count = self.backend.join(self.ingest_job_id)
+
+        # Set cred time
+        self.credential_create_time = datetime.datetime.now()
 
         logger = logging.getLogger('ingest-client')
-        logger.info("CREATED INGEST JOB: {}".format(self.ingest_job_id))
+        logger.info("JOINED INGEST JOB: {}".format(self.ingest_job_id))
 
     def cancel(self):
         """
@@ -176,28 +187,38 @@ class Engine(object):
 
         # Make sure you are joined
         # if not self.credentials:
-            # msg = "Cannot start ingest engine.  You must first join an ingest job!"
+            # msg = "Cannot start ingest engine.  Credentials not successfully received from the ingest service."
             # logger.error(msg)
             # raise Exception(msg)
-
-        # if self.job_status == INGEST_STATUS_PREPARING:
-            # msg = "Cannot start ingest engine.  Ingest job is not ready yet"
-            # logger.error(msg)
+        
+        # if self.job_status == INGEST_STATUS_COMPLETE:
+            # msg = "Ingest job already completed. Skipping ingest engine start."
+            # logger.info(msg)
             # raise Exception(msg)
-
-        if self.job_status == INGEST_STATUS_COMPLETE:
-            msg = "Ingest job already completed. Skipping ingest engine start."
-            logger.info(msg)
-            raise Exception(msg)
 
         # Do some work
+        exiting = False
+        wait_cnt = 0
         while True:
             try:
                 # Get a task
                 for message_id, receipt_handle, message_body in self.backend.get_task():
 
+<<<<<<< HEAD
                   if not message_body:
+                    time.sleep(10)
+                    wait_cnt += 1
+                    if wait_cnt == 1:
+                      sys.stdout.write("Waiting for up to 3minutes for upload tasks to appear.")
+                      sys.stdout.flush()
+                      continue
+                    elif wait_cnt < self.msg_wait_iterations:
+                      sys.stdout.write(".")
+                      sys.stdout.flush()
+                      continue
+                    else:
                       break
+                  wait_cnt = 0
 
                   # Call path processor
                   filename = self.path_processor.process(message_body["x_tile"], message_body["y_tile"], message_body["z_tile"], message_body["t_tile"])
@@ -230,6 +251,8 @@ class Engine(object):
 
                 if quit_run:
                     print("Stopping upload engine.")
+                    exiting = True
                     break
 
-        logger.info("No more tasks remaining.")
+        if not exiting:
+            logger.info("No more tasks remaining.")
