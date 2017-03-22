@@ -11,8 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import os
 import time
 import sys
+from math import floor
 from ingest.core.config import Configuration, ConfigFileError
 from six.moves import input
 import logging
@@ -102,7 +104,7 @@ class Engine(object):
     def setup(self, log_file=None):
         """Method to setup the Engine by finishing configuring subclasses and validating the schema"""
         if not log_file:
-            log_file = 'ingest_log{}.log'.format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
+            log_file = 'ingest_log{}_pid{}.log'.format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"), os.getpid())
 
         logging.basicConfig(level=logging.INFO,
                             format='%(asctime)s %(levelname)-8s %(message)s',
@@ -161,7 +163,7 @@ class Engine(object):
         self.credential_create_time = datetime.datetime.now()
 
         logger = logging.getLogger('ingest-client')
-        logger.info("JOINED INGEST JOB: {}".format(self.ingest_job_id))
+        logger.info("(pid={}) JOINED INGEST JOB: {}".format(os.getpid(), self.ingest_job_id))
 
     def cancel(self):
         """
@@ -187,71 +189,58 @@ class Engine(object):
 
         # Make sure you are joined
         # if not self.credentials:
-            # msg = "Cannot start ingest engine.  Credentials not successfully received from the ingest service."
+            # msg = "(pid={}) Cannot start ingest engine.  Credentials not successfully received from the ingest service.".format(os.getpid())
             # logger.error(msg)
             # raise Exception(msg)
-        
+
+        # if self.job_status == 0:
+            # msg = "(pid={}) Cannot start ingest engine.  Ingest job is not ready yet.".format(os.getpid())
+            # logger.error(msg)
+            # raise Exception(msg)
+
         # if self.job_status == INGEST_STATUS_COMPLETE:
-            # msg = "Ingest job already completed. Skipping ingest engine start."
+            # msg = "(pid={}) Ingest job already completed. Skipping ingest engine start.".format(os.getpid())
             # logger.info(msg)
             # raise Exception(msg)
 
         # Do some work
-        exiting = False
         wait_cnt = 0
         while True:
-            try:
-                # Get a task
-                for message_id, receipt_handle, message_body in self.backend.get_task():
+          # Check if you need to renew credentials
+          if (datetime.datetime.now() - self.credential_create_time).total_seconds() > self.backend.credential_timeout:
+              print("Renewing Credentials")
+              logger.info("Renewing Credentials")
+              self.join()
+            
+            # Get a task
+            for message_id, receipt_handle, message_body in self.backend.get_task():
 
-                  if not message_body:
-                    time.sleep(10)
-                    wait_cnt += 1
-                    if wait_cnt == 1:
-                      sys.stdout.write("Waiting for up to 3minutes for upload tasks to appear.")
-                      sys.stdout.flush()
-                      continue
-                    elif wait_cnt < self.msg_wait_iterations:
-                      sys.stdout.write(".")
-                      sys.stdout.flush()
-                      continue
-                    else:
-                      break
-                  wait_cnt = 0
+              if not message_body:
+                time.sleep(10)
+                wait_cnt += 1
+                if wait_cnt < self.msg_wait_iterations:
+                  # Compute time
+                  wait_mins = int(floor((10 * wait_cnt) / 60))
+                  wait_sec = int((10 * wait_cnt) % 60)
 
-                  # Call path processor
-                  filename = self.path_processor.process(message_body["x_tile"], message_body["y_tile"], message_body["z_tile"], message_body["t_tile"])
+                  print("(pid={}) Waited {} min {} sec of 3 minutes for upload tasks to appear...".format(os.getpid(), wait_min, wait_sec))
+                  continue
+                else:
+                  break
 
-                  # Call tile processor
-                  tile_handle = self.tile_processor.process(filename, message_body["x_tile"], message_body["y_tile"], message_body["z_tile"], message_body["t_tile"])
+              wait_cnt = 0
 
-                  try:
-                      tile_handle.seek(0)
-                      tile_bucket = TileBucket(self.nd_proj.project_name, endpoint_url=settings.S3_ENDPOINT)
-                      response = tile_bucket.putObject(tile_handle, self.nd_proj.channel_name, self.nd_proj.resolution, message_body['x_tile'], message_body['y_tile'], message_body['z_tile'], message_id, receipt_handle)
-                      logger.info("Successfully wrote file: {}".format(response.key))
+              # Call path processor
+              filename = self.path_processor.process(message_body["x_tile"], message_body["y_tile"], message_body["z_tile"], message_body["t_tile"])
 
-                  except Exception as e:
-                      logger.error("Upload Failed -  X:{} Y:{} Z:{} T:{} - {}".format(message_body["x_tile"], message_body["y_tile"], message_body["z_tile"], message_body["t_tile"], e))
+              # Call tile processor
+              tile_handle = self.tile_processor.process(filename, message_body["x_tile"], message_body["y_tile"], message_body["z_tile"], message_body["t_tile"])
 
-            except KeyboardInterrupt:
-                # Make sure they want to stop this client
-                quit_run = False
-                while True:
-                    quit_uploading = input("Are you sure you want to quit uploading? (y/n)")
-                    if quit_uploading.lower() == "y":
-                        quit_run = True
-                        break
-                    elif quit_uploading.lower() == "n":
-                        print("Continuing...")
-                        break
-                    else:
-                        print("Enter 'y' or 'n' for 'yes' or 'no'")
+              try:
+                  tile_handle.seek(0)
+                  tile_bucket = TileBucket(self.nd_proj.project_name, endpoint_url=settings.S3_ENDPOINT)
+                  response = tile_bucket.putObject(tile_handle, self.nd_proj.channel_name, self.nd_proj.resolution, message_body['x_tile'], message_body['y_tile'], message_body['z_tile'], message_id, receipt_handle)
+                  logger.info("Successfully wrote file: {}".format(response.key))
 
-                if quit_run:
-                    print("Stopping upload engine.")
-                    exiting = True
-                    break
-
-        if not exiting:
-            logger.info("No more tasks remaining.")
+              except Exception as e:
+                  logger.error("Upload Failed -  X:{} Y:{} Z:{} T:{} - {}".format(message_body["x_tile"], message_body["y_tile"], message_body["z_tile"], message_body["t_tile"], e))
